@@ -1,0 +1,428 @@
+import { useMemo, useState } from 'react';
+
+const poles = [
+  {
+    id: 'POLE-001',
+    status: 'online',
+    wifi: 'Connected',
+    firebase: 'Connected',
+    camera: 'Connected',
+    sensor: 'Connected',
+    lastReading: '2:35 PM',
+    lat: 27.0238,
+    lng: 76.1234,
+    zone: 'Zone A',
+    road: 'Main Road',
+    reference: 250,
+    threshold: 5,
+    calibration: 250,
+    deviceId: 'ESP32-PTH-01'
+  },
+  {
+    id: 'POLE-002',
+    status: 'offline',
+    wifi: 'Offline',
+    firebase: 'Unavailable',
+    camera: 'Offline',
+    sensor: 'Unstable',
+    lastReading: '10:42 AM',
+    lat: 27.0289,
+    lng: 76.1187,
+    zone: 'Zone B',
+    road: 'Market Road',
+    reference: 248,
+    threshold: 5,
+    calibration: 248,
+    deviceId: 'ESP32-PTH-02'
+  },
+  {
+    id: 'POLE-003',
+    status: 'online',
+    wifi: 'Connected',
+    firebase: 'Connected',
+    camera: 'Connected',
+    sensor: 'Connected',
+    lastReading: '1:18 PM',
+    lat: 27.0198,
+    lng: 76.1315,
+    zone: 'Zone C',
+    road: 'School Road',
+    reference: 252,
+    threshold: 6,
+    calibration: 252,
+    deviceId: 'ESP32-PTH-03'
+  }
+];
+
+const potholes = [
+  {
+    id: 'PTH-POLE001-0001',
+    poleId: 'POLE-001',
+    severity: 'HIGH',
+    priority: 'REPAIR SOON',
+    status: 'PENDING',
+    reference: 250,
+    measured: 258,
+    difference: 8,
+    threshold: 5,
+    image: 'https://images.unsplash.com/photo-1504307651254-35680f356dfd?auto=format&fit=crop&w=900&q=80',
+    time: '2:35 PM',
+    location: 'Main Road • Zone A',
+    source: 'HC-SR04 + ESP32-CAM'
+  },
+  {
+    id: 'PTH-POLE003-0002',
+    poleId: 'POLE-003',
+    severity: 'MEDIUM',
+    priority: 'SCHEDULE REPAIR',
+    status: 'ASSIGNED',
+    reference: 252,
+    measured: 259,
+    difference: 7,
+    threshold: 6,
+    image: 'https://images.unsplash.com/photo-1520719627573-5e4521f0d7a0?auto=format&fit=crop&w=900&q=80',
+    time: '1:18 PM',
+    location: 'School Road • Zone C',
+    source: 'HC-SR04 + ESP32-CAM'
+  },
+  {
+    id: 'PTH-POLE001-0003',
+    poleId: 'POLE-001',
+    severity: 'CRITICAL',
+    priority: 'IMMEDIATE',
+    status: 'UNDER_REPAIR',
+    reference: 250,
+    measured: 264,
+    difference: 14,
+    threshold: 5,
+    image: 'https://images.unsplash.com/photo-1486406146926-c627a92ad1ab?auto=format&fit=crop&w=900&q=80',
+    time: '9:12 AM',
+    location: 'Main Road • Zone A',
+    source: 'HC-SR04 + ESP32-CAM'
+  }
+];
+
+const navItems = [
+  { id: 'home', label: 'Home' },
+  { id: 'map', label: 'Live Map' },
+  { id: 'alerts', label: 'Alerts' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'profile', label: 'Profile' }
+];
+
+const severityColors = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+  CRITICAL: 'critical'
+};
+
+const formatPriority = (value) => {
+  if (!value) return '—';
+  return value.toUpperCase();
+};
+
+function App() {
+  const [activeTab, setActiveTab] = useState('home');
+  const [demoMode, setDemoMode] = useState(false);
+
+  const totals = useMemo(() => {
+    const total = potholes.length;
+    const critical = potholes.filter((item) => item.severity === 'CRITICAL').length;
+    const high = potholes.filter((item) => item.severity === 'HIGH').length;
+    const medium = potholes.filter((item) => item.severity === 'MEDIUM').length;
+    const low = potholes.filter((item) => item.severity === 'LOW').length;
+    const pending = potholes.filter((item) => item.status === 'PENDING').length;
+    const resolved = potholes.filter((item) => item.status === 'FIXED').length;
+
+    return { total, critical, high, medium, low, pending, resolved };
+  }, []);
+
+  const latestDetection = potholes[0];
+
+  const renderHome = () => (
+    <>
+      <header className="topbar">
+        <div>
+          <p className="eyebrow">Smart City Infrastructure</p>
+          <h1>Smart Pothole Detection & Mapping</h1>
+        </div>
+        <button className="toggle-chip">{demoMode ? 'DEMO MODE' : 'REAL MODE'}</button>
+      </header>
+
+      <div className="status-banner">
+        <span className="dot green" />
+        <span>Live Monitoring • Hardware Online</span>
+      </div>
+
+      <section className="metrics-grid">
+        <MetricCard label="Total Potholes" value={String(totals.total)} accent="blue" />
+        <MetricCard label="Critical" value={String(totals.critical)} accent="red" />
+        <MetricCard label="High" value={String(totals.high)} accent="orange" />
+        <MetricCard label="Medium" value={String(totals.medium)} accent="amber" />
+        <MetricCard label="Low" value={String(totals.low)} accent="green" />
+        <MetricCard label="Pending Repairs" value={String(totals.pending)} accent="navy" />
+      </section>
+
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Latest Detection</h2>
+          <span className="pill warning">NEW POTHOLE</span>
+        </div>
+
+        <div className="alert-card strong">
+          <img src={latestDetection.image} alt="Latest pothole" />
+          <div className="alert-copy">
+            <p className="small">Pole: {latestDetection.poleId}</p>
+            <div className="big-stack">
+              <strong>{latestDetection.id}</strong>
+              <span>HC-SR04: {latestDetection.measured} cm</span>
+              <span>Reference: {latestDetection.reference} cm</span>
+              <span>Difference: {latestDetection.difference} cm</span>
+            </div>
+            <div className="row gap-8">
+              <Badge label={latestDetection.severity} type={severityColors[latestDetection.severity]} />
+              <Badge label={latestDetection.priority} type="neutral" />
+            </div>
+            <p className="timestamp">Time: {latestDetection.time}</p>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Light Pole Monitoring Units</h2>
+        </div>
+
+        <div className="pole-list">
+          {poles.map((pole) => (
+            <div className="pole-item" key={pole.id}>
+              <div>
+                <h3>{pole.id}</h3>
+                <p>{pole.status === 'online' ? '🟢 ONLINE' : '🔴 OFFLINE'}</p>
+              </div>
+              <div className="mini-grid">
+                <span>ESP32-CAM: {pole.camera}</span>
+                <span>HC-SR04: {pole.sensor}</span>
+                <span>Wi-Fi: {pole.wifi}</span>
+                <span>Firebase: {pole.firebase}</span>
+              </div>
+              <small>Last Reading: {pole.lastReading}</small>
+            </div>
+          ))}
+        </div>
+      </section>
+    </>
+  );
+
+  const renderMap = () => (
+    <section className="section-card map-panel">
+      <div className="section-header">
+        <h2>Live Map</h2>
+        <span className="pill neutral">Fixed Pole Network</span>
+      </div>
+
+      <div className="map-box">
+        <div className="map-bg" />
+        {poles.map((pole) => (
+          <div
+            className={`map-marker ${pole.status === 'online' ? 'online' : 'offline'}`}
+            key={pole.id}
+            style={{ left: `${18 + pole.lat * 1.8}%`, top: `${20 + pole.lng * 1.2}%` }}
+          >
+            <span>{pole.id}</span>
+          </div>
+        ))}
+
+        {potholes.map((item, index) => (
+          <div
+            className={`pothole-dot ${severityColors[item.severity]}`}
+            key={item.id}
+            style={{ left: `${30 + index * 12}%`, top: `${36 + index * 10}%` }}
+          >
+            <span>{item.severity}</span>
+          </div>
+        ))}
+      </div>
+
+      <div className="map-details">
+        {potholes.map((item) => (
+          <div className="detail-row" key={item.id}>
+            <div>
+              <strong>{item.poleId}</strong>
+              <small>{item.id}</small>
+            </div>
+            <div className="segment">
+              <Badge label={item.severity} type={severityColors[item.severity]} />
+              <Badge label={item.priority} type="neutral" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderAlerts = () => (
+    <section className="section-card">
+      <div className="section-header">
+        <h2>Recent Alerts</h2>
+        <span className="pill info">Chronological Feed</span>
+      </div>
+
+      <div className="alert-list">
+        {potholes.map((item) => (
+          <article className="alert-card" key={item.id}>
+            <img src={item.image} alt={item.id} />
+            <div className="alert-copy">
+              <div className="row space-between">
+                <strong>{item.id}</strong>
+                <Badge label={item.severity} type={severityColors[item.severity]} />
+              </div>
+              <p>Pole: {item.poleId}</p>
+              <p>Sensor Reading: {item.measured} cm</p>
+              <p>Difference: {item.difference} cm</p>
+              <p>Repair Status: {item.status}</p>
+              <small>{item.time}</small>
+            </div>
+          </article>
+        ))}
+      </div>
+    </section>
+  );
+
+  const renderReports = () => (
+    <>
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Repair Estimate</h2>
+          <span className="pill success">Estimated Cost</span>
+        </div>
+
+        <div className="estimate-box">
+          <div>
+            <span className="muted">Volume</span>
+            <strong>3.8 m³</strong>
+          </div>
+          <div>
+            <span className="muted">Material</span>
+            <strong>Bituminous Mix</strong>
+          </div>
+          <div>
+            <span className="muted">Total</span>
+            <strong>₹42,600</strong>
+          </div>
+        </div>
+      </section>
+
+      <section className="section-card">
+        <div className="section-header">
+          <h2>Generated Reports</h2>
+        </div>
+        <div className="report-list">
+          <div className="report-item">
+            <span>Pothole ID</span>
+            <strong>PTH-POLE001-0001</strong>
+            <small>Measured Data • Calculated Data • AI Data</small>
+          </div>
+          <div className="report-item">
+            <span>Severity</span>
+            <strong>HIGH</strong>
+            <small>Priority Reason: 8 cm deviation + high traffic road</small>
+          </div>
+          <div className="report-item">
+            <span>Materials</span>
+            <strong>Asphalt / Aggregate / Emulsion</strong>
+            <small>Estimated Quantity: 1.4 T + 0.9 m³</small>
+          </div>
+        </div>
+      </section>
+    </>
+  );
+
+  const renderProfile = () => (
+    <section className="section-card">
+      <div className="section-header">
+        <h2>Profile & Settings</h2>
+      </div>
+
+      <div className="settings-list">
+        <div className="setting-item">
+          <span>User Management</span>
+          <strong>Authority Admin</strong>
+        </div>
+        <div className="setting-item">
+          <span>Pole Management</span>
+          <strong>3 units registered</strong>
+        </div>
+        <div className="setting-item">
+          <span>Material Rates</span>
+          <strong>Editable by admin</strong>
+        </div>
+        <div className="setting-item">
+          <span>Detection Threshold</span>
+          <strong>5 cm default</strong>
+        </div>
+        <div className="setting-item toggle-line">
+          <span>Demo Mode</span>
+          <button
+            className={`switch ${demoMode ? 'on' : ''}`}
+            onClick={() => setDemoMode((value) => !value)}
+            aria-label="Toggle demo mode"
+          >
+            <span className="switch-knob" />
+          </button>
+        </div>
+      </div>
+    </section>
+  );
+
+  const renderContent = () => {
+    switch (activeTab) {
+      case 'map':
+        return renderMap();
+      case 'alerts':
+        return renderAlerts();
+      case 'reports':
+        return renderReports();
+      case 'profile':
+        return renderProfile();
+      default:
+        return renderHome();
+    }
+  };
+
+  return (
+    <div className="app-shell">
+      <div className="phone-frame">
+        {renderContent()}
+
+        <nav className="bottom-nav" aria-label="Bottom navigation">
+          {navItems.map((item) => (
+            <button
+              key={item.id}
+              className={activeTab === item.id ? 'nav-item active' : 'nav-item'}
+              onClick={() => setActiveTab(item.id)}
+            >
+              {item.label}
+            </button>
+          ))}
+        </nav>
+      </div>
+    </div>
+  );
+}
+
+function MetricCard({ label, value, accent }) {
+  return (
+    <div className={`metric-card ${accent}`}>
+      <span>{label}</span>
+      <strong>{value}</strong>
+    </div>
+  );
+}
+
+function Badge({ label, type }) {
+  return <span className={`badge ${type}`}>{label}</span>;
+}
+
+export default App;
